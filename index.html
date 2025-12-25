@@ -229,7 +229,7 @@
         /* ===== LOVE MODE TEXT ===== */
         #love-text {
             position: fixed;
-            bottom: 50px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
             font-family: 'Quicksand', sans-serif;
@@ -476,11 +476,11 @@
             );
             
             const heartAngle = (i / CFG.particleCount) * Math.PI * 2;
-            const heartT = (i / CFG.particleCount) * 2 - 1;
+            const heartT = Math.sin(heartAngle);
             const heartX = 16 * Math.pow(Math.sin(heartAngle), 3);
             const heartY = 13 * Math.cos(heartAngle) - 5 * Math.cos(2 * heartAngle) - 2 * Math.cos(3 * heartAngle) - Math.cos(4 * heartAngle);
-            const heartZ = (Math.random() - 0.5) * 8;
-            const heartPos = new THREE.Vector3(heartX, heartY - 5, heartZ);
+            const heartZ = Math.cos(heartAngle) * 3;
+            const heartPos = new THREE.Vector3(heartX, heartY + 5, heartZ);
             
             mesh.userData = {
                 treePos,
@@ -529,7 +529,8 @@
             const heartAngle = (i / CFG.photoCount) * Math.PI * 2;
             const heartX = 18 * Math.pow(Math.sin(heartAngle), 3);
             const heartY = 15 * Math.cos(heartAngle) - 6 * Math.cos(2 * heartAngle) - 2.5 * Math.cos(3 * heartAngle) - Math.cos(4 * heartAngle);
-            const heartPos = new THREE.Vector3(heartX, heartY - 3, 0);
+            const heartZ = Math.cos(heartAngle) * 2;
+            const heartPos = new THREE.Vector3(heartX, heartY + 7, heartZ);
             
             mesh.userData = {
                 isPhoto: true,
@@ -617,8 +618,17 @@
             tips.forEach(p => avgDist += Math.hypot(p.x - L[0].x, p.y - L[0].y));
             avgDist /= 4;
             
-            const thumbIndexDist = Math.hypot(L[4].x - L[8].x, L[4].y - L[8].y);
-            const indexMiddleDist = Math.hypot(L[8].x - L[12].x, L[8].y - L[12].y);
+            const indexTip = L[8];
+            const middleTip = L[12];
+            const ringTip = L[16];
+            const pinkyTip = L[20];
+            
+            const indexUp = indexTip.y < L[6].y;
+            const middleUp = middleTip.y < L[10].y;
+            const ringDown = ringTip.y > L[14].y;
+            const pinkyDown = pinkyTip.y > L[18].y;
+            
+            const isPeaceSign = indexUp && middleUp && ringDown && pinkyDown;
             
             const thumbPinkyDist = Math.hypot(L[4].x - L[20].x, L[4].y - L[20].y);
             const thumbHeight = L[4].y;
@@ -641,7 +651,7 @@
                     hideLoveText();
                     clearFloatingTexts();
                 }
-            } else if (thumbIndexDist < 0.06 && indexMiddleDist > 0.1) {
+            } else if (isPeaceSign) {
                 if (state.mode !== 'ZOOM') {
                     state.mode = 'ZOOM';
                     state.lastGestureTime = now;
@@ -744,7 +754,9 @@
                 mainGroup.rotation.y = state.handRotation.y * 0.3;
                 mainGroup.rotation.x = state.handRotation.x * 0.2;
             } else if (state.mode === 'LOVE') {
-                mainGroup.rotation.y += 0.003;
+                // Heart mode: KHÔNG xoay, đứng yên
+                mainGroup.rotation.y += (0 - mainGroup.rotation.y) * 0.05;
+                mainGroup.rotation.x += (0 - mainGroup.rotation.x) * 0.05;
             }
             
             // Update particles
