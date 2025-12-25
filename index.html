@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Christmas Tree 3D</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #050505; font-family: 'Cinzel', serif; color: #fffdd0; user-select: none; }
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
+        #ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        h1 { position: absolute; top: 40px; width: 100%; text-align: center; font-size: 40px; letter-spacing: 8px; color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.5); opacity: 0.8; }
+        .controls { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: auto; display: flex; flex-direction: column; gap: 15px; align-items: center; }
+        .btn { background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); border: 1px solid rgba(255,215,0,0.3); color: #ffd700; padding: 12px 30px; font-family: 'Cinzel', serif; font-size: 13px; text-transform: uppercase; letter-spacing: 3px; cursor: pointer; transition: all 0.4s; outline: none; border-radius: 2px; }
+        .btn:hover { background: rgba(255,215,0,0.1); border-color: #ffd700; box-shadow: 0 0 25px rgba(255,215,0,0.2); }
+        .hint { font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 2px; text-transform: uppercase; }
+        input[type="file"] { display: none; }
+        #loader { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 1s; }
+        .spinner { width: 50px; height: 50px; border: 1px solid rgba(255,215,0,0.1); border-top: 1px solid #ffd700; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 25px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loader-text { color: #ffd700; font-size: 14px; letter-spacing: 6px; }
+        #hand-cursor { position: fixed; width: 30px; height: 30px; border: 1px solid #ffd700; border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; z-index: 50; opacity: 0; transition: opacity 0.2s; box-shadow: 0 0 15px rgba(255,215,0,0.3); background: rgba(255,215,0,0.05); }
+        #vision-container { position: fixed; bottom: 10px; right: 10px; opacity: 0; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div id="loader"><div class="spinner"></div><div class="loader-text">LOADING MAGIC</div></div>
+    <div id="ui-layer">
+        <h1>MERRY CHRISTMAS</h1>
+        <div class="controls">
+            <label class="btn">Upload Photos<input type="file" id="photo-input" accept="image/*" multiple></label>
+            <button class="btn" id="btn-transform">Transform (T)</button>
+            <button class="btn" id="btn-scatter">Scatter (S)</button>
+            <div class="hint">Pinch to Focus • Open Hand to Scatter • Fist to Transform</div>
+        </div>
+    </div>
+    <div id="hand-cursor"></div>
+    <div id="canvas-container"></div>
+    <div id="vision-container"><video id="webcam" autoplay playsinline width="160" height="120"></video></div>
+    
+    <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@mediapipe/tasks-vision":"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm"}}</script>
+    
+    <script type="module">
+        import * as THREE from 'three';
+        import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+        import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+        import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+        import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import {FilesetResolver,HandLandmarker} from '@mediapipe/tasks-vision';
+        
+        const CFG={treeHeight:28,treeMaxRadius:11,particleCount:5000,snowCount:1500};
+        const state={mode:'TREE',savedMode:'TREE',focusTarget:null,handRotation:{x:0,y:0},cursorPos:new THREE.Vector2(),isFistHeld:false,lastGestureTime:0,time:0};
+        const particles=[],photos=[],mainGroup=new THREE.Group();
+        
+        const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0,0.015);scene.add(mainGroup);
+        const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,0.1,200);camera.position.set(0,2,52);
+        const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+        renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+        renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.2;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+        
+        const pmremGen=new THREE.PMREMGenerator(renderer);
+        scene.environment=pmremGen.fromScene(new RoomEnvironment(),0.04).texture;
+        
+        const composer=new EffectComposer(renderer);
+        composer.addPass(new RenderPass(scene,camera));
+        const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),1.5,0.4,0.85);
+        bloom.strength=0.7;bloom.radius=0.6;bloom.threshold=0.9;composer.addPass(bloom);
+        
+        scene.add(new THREE.AmbientLight(0xffffff,0.1));
+        const innerLight=new THREE.PointLight(0xffaa00,5,40);innerLight.position.set(0,5,0);scene.add(innerLight);
+        const spot=new THREE.SpotLight(0xffd700,500);spot.position.set(20,30,30);spot.angle=0.4;spot.penumbra=0.5;scene.add(spot);
+        
+        const geoSphere=new THREE.SphereGeometry(1,12,12),geoDiamond=new THREE.OctahedronGeometry(1,1),geoHit=new THREE.PlaneGeometry(3.5,3.5);
+        
+        function createStar(){const s=new THREE.Shape();for(let i=0;i<10;i++){const r=i%2?0.7:1.5,a=i*Math.PI/5-Math.PI/2;s[i?'lineTo':'moveTo'](Math.cos(a)*r,Math.sin(a)*r)}s.closePath();const g=new THREE.ExtrudeGeometry(s,{depth:0.4,bevelEnabled:true,bevelThickness:0.1,bevelSize:0.1,bevelSegments:3});g.center();return g}
+        const geoStar=createStar(),geoFrame=new THREE.BoxGeometry(1.6,1.1,0.05),geoPhoto=new THREE.PlaneGeometry(1.4,0.9);
+        
+        const matGold=new THREE.MeshStandardMaterial({color:0xffcc00,roughness:0.1,metalness:0.9,emissive:0xaa6600,emissiveIntensity:0.2});
+        const matRed=new THREE.MeshPhysicalMaterial({color:0x880000,metalness:0.5,roughness:0.1,clearcoat:1});
+        const matLight=new THREE.MeshStandardMaterial({color:0xffffee,emissive:0xffddaa,emissiveIntensity:2,toneMapped:false});
+        const matStar=new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffd700,emissiveIntensity:4,roughness:0.4,toneMapped:false});
+        const matFrame=new THREE.MeshStandardMaterial({color:0xffd700,roughness:0.2,metalness:0.9});
+        const matHit=new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide});
+        
+        function genText(){const pos=[],c=document.createElement('canvas'),w=2048,h=1024;c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,w,h);x.fillStyle='#fff';x.font='900 200px Cinzel';x.textAlign='center';x.textBaseline='middle';x.fillText("MERRY",w/2,h*0.3);x.fillText("CHRISTMAS",w/2,h*0.7);const d=x.getImageData(0,0,w,h).data;for(let y=0;y<h;y+=4)for(let i=0;i<w;i+=4){const j=(y*w+i)*4;if(d[j]>100)pos.push(new THREE.Vector3((i/w-0.5)*30,-(y/h-0.5)*24+2,0))}return pos}
+        const textPos=genText();
+        
+        function createParticle(type,tex){let m;if(type==='STAR'){m=new THREE.Mesh(geoStar,matStar);m.scale.setScalar(1.2)}else if(type==='PHOTO'){const g=new THREE.Group(),t=tex||(() =>{const c=document.createElement('canvas');c.width=512;c.height=340;const x=c.getContext('2d');x.fillStyle='#fceea7';x.fillRect(0,0,512,340);x.fillStyle='#d4af37';x.font='bold 60px Cinzel';x.textAlign='center';x.fillText('JOYEUX',256,140);x.fillText('NOEL',256,220);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t})(),mp=new THREE.MeshStandardMaterial({map:t,side:THREE.DoubleSide,roughness:0.6,metalness:0.1}),pm=new THREE.Mesh(geoPhoto,mp);pm.position.z=0.03;const fm=new THREE.Mesh(geoFrame,matFrame),hm=new THREE.Mesh(geoHit,matHit);hm.position.z=0.05;hm.userData.isHitBox=true;g.add(fm);g.add(pm);g.add(hm);m=g;m.userData.isPhoto=true;photos.push(m)}else if(type==='LIGHT'){m=new THREE.Mesh(geoSphere,matLight);m.scale.setScalar(0.08+Math.random()*0.05)}else if(type==='ORNAMENT_GOLD'){m=new THREE.Mesh(geoDiamond,matGold);m.scale.setScalar(0.25)}else{m=new THREE.Mesh(geoSphere,matRed);m.scale.setScalar(0.2)}const i=particles.length,t=i/CFG.particleCount,a=t*70*Math.PI,y=t*CFG.treeHeight-CFG.treeHeight/2,r=CFG.treeMaxRadius*(1-t);let tp=new THREE.Vector3(Math.cos(a)*r,y,Math.sin(a)*r);if(type!=='STAR'){tp.x+=(Math.random()-0.5)*1.5;tp.z+=(Math.random()-0.5)*1.5}else tp.set(0,CFG.treeHeight/2+0.5,0);let tr=new THREE.Euler(Math.random()*Math.PI,Math.random()*Math.PI,Math.random()*Math.PI);if(type==='PHOTO'){const pt=Math.random()*0.7,py=pt*CFG.treeHeight-CFG.treeHeight/2,pr=CFG.treeMaxRadius*(1-pt)+1,pa=Math.random()*Math.PI*2;tp.set(Math.cos(pa)*pr,py,Math.sin(pa)*pr);tr.set(0,-pa+Math.PI/2,(Math.random()-0.5)*0.2)}const ti=Math.floor(i/CFG.particleCount*textPos.length),si=textPos.length?ti%textPos.length:0,txp=textPos.length?textPos[si].clone():new THREE.Vector3();txp.x+=(Math.random()-0.5)*0.05;txp.y+=(Math.random()-0.5)*0.05;const rs=15+Math.random()*20,th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1),sp=new THREE.Vector3(rs*Math.sin(ph)*Math.cos(th),rs*Math.sin(ph)*Math.sin(th),rs*Math.cos(ph));m.position.copy(tp);m.rotation.copy(tr);m.userData={type,treePos:tp,treeRot:tr,textPos:txp,scatterPos:sp,baseScale:m.scale.clone(),blinkSpeed:Math.random()*0.05+0.02,blinkOffset:Math.random()*Math.PI*2,rotVel:new THREE.Vector3((Math.random()-0.5)*0.02,(Math.random()-0.5)*0.02,0)};mainGroup.add(m);particles.push(m)}
+        
+        createParticle('STAR');
+        for(let i=1;i<CFG.particleCount;i++){const r=Math.random();createParticle(r<0.6?'LIGHT':r<0.9?'ORNAMENT_GOLD':'ORNAMENT_RED')}
+        
+        const snowGeo=new THREE.BufferGeometry(),snowPos=[],snowVel=[];
+        for(let i=0;i<CFG.snowCount;i++){snowPos.push((Math.random()-0.5)*100,(Math.random()-0.5)*80+20,(Math.random()-0.5)*100);snowVel.push(Math.random()*0.1+0.02)}
+        snowGeo.setAttribute('position',new THREE.Float32BufferAttribute(snowPos,3));snowGeo.userData={vels:snowVel};
+        const snow=new THREE.Points(snowGeo,new THREE.PointsMaterial({color:0xffffff,size:0.15,transparent:true,opacity:0.6,blending:THREE.AdditiveBlending,depthWrite:false}));
+        scene.add(snow);
+        
+        let vision=null,lastVT=-1;
+        async function initVision(){try{const v=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");vision=await HandLandmarker.createFromOptions(v,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:"GPU"},runningMode:"VIDEO",numHands:1});startCam()}catch(e){hideLoader()}}
+        async function startCam(){const v=document.getElementById('webcam');try{v.srcObject=await navigator.mediaDevices.getUserMedia({video:true});v.addEventListener("loadeddata",()=>{hideLoader();predict()})}catch(e){hideLoader()}}
+        async function predict(){const v=document.getElementById('webcam');if(vision&&v.currentTime!==lastVT){lastVT=v.currentTime;processGesture(await vision.detectForVideo(v,performance.now()))}requestAnimationFrame(predict)}
+        function processGesture(r){const c=document.getElementById('hand-cursor');if(!r.landmarks||!r.landmarks.length){c.style.opacity=0;return}const L=r.landmarks[0];c.style.opacity=1;const cx=(1-L[8].x)*innerWidth,cy=L[8].y*innerHeight;c.style.left=cx+'px';c.style.top=cy+'px';state.cursorPos.x=(cx/innerWidth)*2-1;state.cursorPos.y=-(cy/innerHeight)*2+1;state.handRotation.y=(L[9].x-0.5)*4;state.handRotation.x=(L[9].y-0.5)*1.5;const pd=Math.hypot(L[4].x-L[8].x,L[4].y-L[8].y);let at=0;[L[8],L[12],L[16],L[20]].forEach(p=>at+=Math.hypot(p.x-L[0].x,p.y-L[0].y,(p.z||0)-(L[0].z||0)));at/=4;const now=Date.now();if(at<0.25){if(!state.isFistHeld){const isR=state.mode==='FOCUS'||state.mode==='SCATTER',cd=isR?200:1000;if(now-state.lastGestureTime>cd){if(isR)state.mode=state.savedMode||'TREE';else{state.mode=state.mode==='TREE'?'TEXT':'TREE';state.savedMode=state.mode}state.lastGestureTime=now}state.isFistHeld=true}}else{state.isFistHeld=false;if(pd<0.05){if(state.mode!=='FOCUS'&&now-state.lastGestureTime>500)findPhoto()}else{if(state.mode==='FOCUS')state.mode='SCATTER';else if(at>0.4&&state.mode!=='SCATTER'&&now-state.lastGestureTime>1000){if(state.mode==='TREE'||state.mode==='TEXT')state.savedMode=state.mode;state.mode='SCATTER';state.lastGestureTime=now}}}}
+        const rc=new THREE.Raycaster();
+        function findPhoto(){rc.setFromCamera(state.cursorPos,camera);const objs=[];photos.forEach(g=>{const h=g.children.find(c=>c.userData.isHitBox);objs.push(h||g.children[1])});const its=rc.intersectObjects(objs);if(its.length){state.focusTarget=its[0].object.parent;if(state.mode==='TREE'||state.mode==='TEXT')state.savedMode=state.mode;state.mode='FOCUS';state.lastGestureTime=Date.now()}}
+        
+        document.getElementById('photo-input').addEventListener('change',e=>{Array.from(e.target.files).forEach(f=>{const r=new FileReader();r.onload=ev=>new THREE.TextureLoader().load(ev.target.result,t=>{t.colorSpace=THREE.SRGBColorSpace;createParticle('PHOTO',t)});r.readAsDataURL(f)})});
+        document.getElementById('btn-transform').onclick=()=>{state.mode=state.mode==='TREE'?'TEXT':'TREE';state.savedMode=state.mode};
+        document.getElementById('btn-scatter').onclick=()=>{state.savedMode=state.mode;state.mode='SCATTER'};
+        addEventListener('keydown',e=>{if(e.key==='t'||e.key==='T'){state.mode=state.mode==='TREE'?'TEXT':'TREE';state.savedMode=state.mode}else if(e.key==='s'||e.key==='S'){state.savedMode=state.mode;state.mode='SCATTER'}});
+        
+        function animate(){state.time+=0.01;if(state.mode==='TREE'||state.mode==='SCATTER'){mainGroup.rotation.y+=(state.handRotation.y-mainGroup.rotation.y)*0.05;mainGroup.rotation.x+=(state.handRotation.x-mainGroup.rotation.x)*0.05}else if(state.mode==='TEXT'){mainGroup.rotation.y+=(0-mainGroup.rotation.y)*0.05;mainGroup.rotation.x+=(0-mainGroup.rotation.x)*0.05}mainGroup.updateMatrixWorld();const ft=state.focusTarget;particles.forEach(p=>{let tp=new THREE.Vector3(),tr=new THREE.Euler(),ts=p.userData.baseScale.clone();if(p.userData.type==='LIGHT'){const b=Math.sin(state.time*2+p.userData.blinkOffset)*0.5+0.5;p.material.emissiveIntensity=1+b*2}if(state.mode==='FOCUS'&&p===ft){const cd=new THREE.Vector3();camera.getWorldDirection(cd);const wtp=new THREE.Vector3().copy(camera.position).add(cd.multiplyScalar(15));tp.copy(wtp);mainGroup.worldToLocal(tp);tr.set(-mainGroup.rotation.x,-mainGroup.rotation.y,-mainGroup.rotation.z);ts.setScalar(4.5)}else{if(state.mode==='TREE'||(state.mode==='FOCUS'&&p!==ft)){tp.copy(p.userData.treePos);tr.copy(p.userData.treeRot)}else if(state.mode==='TEXT'){tp.copy(p.userData.textPos);tr.set(0,0,0);ts.multiplyScalar(0.4)}else if(state.mode==='SCATTER'){tp.copy(p.userData.scatterPos);p.rotation.x+=p.userData.rotVel.x;p.rotation.y+=p.userData.rotVel.y}}p.position.lerp(tp,0.08);p.scale.lerp(ts,0.08);if(state.mode!=='SCATTER'){p.rotation.x+=(tr.x-p.rotation.x)*0.1;p.rotation.y+=(tr.y-p.rotation.y)*0.1;p.rotation.z+=(tr.z-p.rotation.z)*0.1}});const sp=snow.geometry.attributes.position.array,sv=snow.geometry.userData.vels;for(let i=0;i<CFG.snowCount;i++){sp[i*3+1]-=sv[i];if(sp[i*3+1]<-20)sp[i*3+1]=60;sp[i*3]+=Math.sin(state.time+i)*0.01}snow.geometry.attributes.position.needsUpdate=true;composer.render();requestAnimationFrame(animate)}
+        
+        addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight)});
+        function hideLoader(){const l=document.getElementById('loader');l.style.opacity='0';setTimeout(()=>l.remove(),1000)}
+        initVision();animate();
+    </script>
+</body>
+</html>
