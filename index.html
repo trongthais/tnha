@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chúc Mừng Ngày 8/3 💐</title>
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Quicksand:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --rose: #ff4d8d;
+      --blush: #ff85a1;
+      --petal: #ffc2d4;
+      --cream: #fff5f8;
+      --gold: #e8a87c;
+      --text-dark: #6b2d4e;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #fff0f5 0%, #ffe4ef 40%, #ffd6ea 100%);
+      font-family: 'Quicksand', sans-serif;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* ── Falling petals ── */
+    .petal-container {
+      position: fixed; inset: 0; pointer-events: none; z-index: 20;
+    }
+    .petal {
+      position: absolute;
+      top: -40px;
+      width: 18px; height: 18px;
+      background: radial-gradient(ellipse at 40% 35%, #ffb3cb, #ff4d8d88);
+      border-radius: 50% 0 50% 0;
+      opacity: 0;
+      animation: fall linear infinite;
+    }
+    @keyframes fall {
+      0%   { transform: translateY(0) rotate(0deg) scale(1);   opacity: .85; }
+      80%  { opacity: .6; }
+      100% { transform: translateY(110vh) rotate(540deg) scale(.6); opacity: 0; }
+    }
+
+    /* ── Floating hearts ── */
+    .heart-float {
+      position: fixed;
+      bottom: -60px;
+      font-size: 1.4rem;
+      animation: floatUp ease-in infinite;
+      pointer-events: none; z-index: 21;
+    }
+    @keyframes floatUp {
+      0%   { transform: translateY(0) translateX(0) scale(.8); opacity: .9; }
+      50%  { transform: translateY(-45vh) translateX(18px) scale(1); opacity: .7; }
+      100% { transform: translateY(-95vh) translateX(-10px) scale(.6); opacity: 0; }
+    }
+
+    /* ── Main card ── */
+    .card-wrapper {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 2rem;
+      position: relative; z-index: 10;
+    }
+
+    .card {
+      background: rgba(255,255,255,.82);
+      backdrop-filter: blur(14px);
+      border-radius: 28px;
+      border: 1.5px solid rgba(255,150,180,.35);
+      box-shadow:
+        0 8px 40px rgba(255,77,141,.18),
+        0 2px 8px rgba(255,77,141,.08);
+      padding: 3rem 2.5rem 2.5rem;
+      max-width: 480px; width: 100%;
+      text-align: center;
+      animation: cardIn .9s cubic-bezier(.22,1,.36,1) both;
+    }
+    @keyframes cardIn {
+      from { opacity:0; transform: translateY(40px) scale(.96); }
+      to   { opacity:1; transform: none; }
+    }
+
+    /* ── Envelope icon ── */
+    .envelope {
+      font-size: 4.5rem;
+      animation: pulse 2.4s ease-in-out infinite;
+      display: block; margin-bottom: 1.2rem;
+      filter: drop-shadow(0 4px 12px #ff4d8d55);
+    }
+    @keyframes pulse {
+      0%,100% { transform: scale(1); }
+      50%      { transform: scale(1.08); }
+    }
+
+    /* ── Badge ── */
+    .date-badge {
+      display: inline-block;
+      background: linear-gradient(90deg, var(--rose), #ff85b3);
+      color: #fff;
+      font-size: .72rem; font-weight: 600; letter-spacing: .12em;
+      text-transform: uppercase;
+      padding: .35rem 1.1rem;
+      border-radius: 99px;
+      margin-bottom: 1.2rem;
+      box-shadow: 0 2px 12px #ff4d8d44;
+    }
+
+    /* ── Heading ── */
+    h1 {
+      font-family: 'Great Vibes', cursive;
+      font-size: clamp(2.4rem, 8vw, 3.4rem);
+      color: var(--rose);
+      line-height: 1.15;
+      margin-bottom: .5rem;
+      text-shadow: 0 2px 12px #ff4d8d33;
+    }
+    .subtitle {
+      font-size: .88rem;
+      color: #b06080;
+      letter-spacing: .06em;
+      margin-bottom: 1.8rem;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      display: flex; align-items: center; gap: .7rem;
+      margin: 1.4rem 0;
+      color: var(--blush);
+    }
+    .divider::before, .divider::after {
+      content:''; flex:1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--petal), transparent);
+    }
+
+    /* ── Message box ── */
+    .message {
+      background: linear-gradient(135deg, #fff0f6, #ffe8f3);
+      border-radius: 18px;
+      border: 1px solid rgba(255,150,180,.3);
+      padding: 1.4rem 1.6rem;
+      margin-bottom: 1.8rem;
+      position: relative;
+    }
+    .message::before {
+      content: '"';
+      font-family: 'Great Vibes', cursive;
+      font-size: 5rem; line-height: 1;
+      color: var(--petal);
+      position: absolute; top: -.6rem; left: .8rem;
+    }
+    .message p {
+      font-size: .96rem;
+      color: var(--text-dark);
+      line-height: 1.75;
+      position: relative; z-index: 1;
+    }
+
+    /* ── Flower row ── */
+    .flowers {
+      font-size: 1.8rem;
+      margin-bottom: 1.6rem;
+      letter-spacing: .15em;
+      animation: sway 3s ease-in-out infinite;
+    }
+    @keyframes sway {
+      0%,100% { transform: rotate(-2deg); }
+      50%      { transform: rotate(2deg); }
+    }
+
+    /* ── Footer ── */
+    .footer-hearts {
+      font-size: .85rem;
+      color: #c07090;
+      margin-top: 1rem;
+    }
+
+    /* ── Sparkle burst on click ── */
+    .sparkle {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      font-size: 1.4rem;
+      animation: sparkleOut .7s ease forwards;
+    }
+    @keyframes sparkleOut {
+      0%   { transform: scale(.5) translate(0,0); opacity:1; }
+      100% { transform: scale(1.4) translate(var(--dx), var(--dy)); opacity:0; }
+    }
+
+  </style>
+</head>
+<body>
+
+<!-- Falling petals -->
+<div class="petal-container" id="petalBox"></div>
+
+<!-- Card -->
+<div class="card-wrapper">
+  <div class="card">
+    <span class="envelope">💌</span>
+    <span class="date-badge">✨ Happy Women's Day ! ✨</span>
+    <h1>Chúc Mừng Ngày 8/3</h1>
+    <p class="subtitle">Gửi đến Tô Ngọc Huệ An - cục dàng của anh !</p>
+
+    <div class="flowers">🌹 🌸 🌻 🌺</div>
+
+    <div class="divider">💕</div>
+
+    <div class="message">
+      <p id="msgText">Chúc em bé iu 8/3 vui vẻ và luôn tươi như hoa nhó ! Cục dàng của anh xinh lắm luôn, nên phải cười thật nhiều nhen 💕. Yêu em lắm. Moah 💋</p>
+    </div>
+
+
+    <p class="footer-hearts">i love you so much 💕</p>
+  </div>
+</div>
+
+<script>
+  /* ── Generate falling petals ── */
+  const petalBox = document.getElementById('petalBox');
+  const PETAL_COUNT = 22;
+
+  for (let i = 0; i < PETAL_COUNT; i++) {
+    const p = document.createElement('div');
+    p.className = 'petal';
+    const size = 10 + Math.random() * 16;
+    p.style.cssText = `
+      left: ${Math.random() * 100}%;
+      width: ${size}px; height: ${size}px;
+      animation-duration: ${5 + Math.random() * 8}s;
+      animation-delay: ${Math.random() * 10}s;
+      opacity: 0;
+      background: radial-gradient(ellipse at 40% 35%,
+        hsl(${340 + Math.random()*20}deg, 100%, 85%),
+        hsl(${340 + Math.random()*20}deg, 80%, 65%));
+    `;
+    petalBox.appendChild(p);
+  }
+
+  /* ── Generate floating hearts ── */
+  const HEARTS = ['💕','💗','💓','🌸','💖','🌺','💝'];
+  for (let i = 0; i < 10; i++) {
+    const h = document.createElement('div');
+    h.className = 'heart-float';
+    h.textContent = HEARTS[Math.floor(Math.random() * HEARTS.length)];
+    h.style.cssText = `
+      left: ${5 + Math.random() * 90}%;
+      font-size: ${0.9 + Math.random() * 1.2}rem;
+      animation-duration: ${6 + Math.random() * 8}s;
+      animation-delay: ${Math.random() * 8}s;
+    `;
+    document.body.appendChild(h);
+  }
+
+
+  document.addEventListener('click', e => {
+    const s = document.createElement('div');
+    s.className = 'sparkle';
+    s.textContent = ['💕','🌸','✨'][Math.floor(Math.random()*3)];
+    s.style.setProperty('--dx', `${(Math.random()-.5)*60}px`);
+    s.style.setProperty('--dy', `${-30 - Math.random()*40}px`);
+    s.style.left = `${e.clientX}px`;
+    s.style.top  = `${e.clientY}px`;
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 750);
+  });
+</script>
+</body>
+</html>
